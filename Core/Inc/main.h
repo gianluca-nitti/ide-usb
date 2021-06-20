@@ -58,6 +58,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define IDE_RESET_Pin GPIO_PIN_15
+#define IDE_RESET_GPIO_Port GPIOB
+#define TXS0108E_OE_Pin GPIO_PIN_8
+#define TXS0108E_OE_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
