@@ -55,6 +55,25 @@ static void MX_GPIO_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void set_IDE_bus_mode(uint32_t mode) {
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	  /*Configure GPIO pins : IDE_DD4_Pin IDE_DD5_Pin IDE_DD6_Pin IDE_DD7_Pin
+	                           IDE_DD8_Pin IDE_DD9_Pin IDE_DD10_Pin IDE_DD11_Pin
+	                           IDE_DD12_Pin IDE_DD13_Pin IDE_DD14_Pin IDE_DD15_Pin */
+	GPIO_InitStruct.Pin = IDE_DD4_Pin|IDE_DD5_Pin|IDE_DD6_Pin|IDE_DD7_Pin
+	                          |IDE_DD8_Pin|IDE_DD9_Pin|IDE_DD10_Pin|IDE_DD11_Pin
+	                          |IDE_DD12_Pin|IDE_DD13_Pin|IDE_DD14_Pin|IDE_DD15_Pin;
+	GPIO_InitStruct.Mode = mode;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : IDE_DD0_Pin IDE_DD1_Pin IDE_DD2_Pin IDE_DD3_Pin */
+	GPIO_InitStruct.Pin = IDE_DD0_Pin|IDE_DD1_Pin|IDE_DD2_Pin|IDE_DD3_Pin;
+	GPIO_InitStruct.Mode = mode;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -96,8 +115,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_GPIO_TogglePin(TXS0108E_OE_GPIO_Port, IDE_RESET_Pin);
+	  //HAL_GPIO_TogglePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin);
+
+	  set_IDE_bus_mode(GPIO_MODE_OUTPUT_PP);
+	  HAL_GPIO_WritePin(IDE_DD8_GPIO_Port, IDE_DD8_Pin, GPIO_PIN_SET);
 	  HAL_Delay(1000);
+	  HAL_GPIO_WritePin(IDE_DD8_GPIO_Port, IDE_DD8_Pin, GPIO_PIN_RESET);
+	  HAL_Delay(1000);
+	  set_IDE_bus_mode(GPIO_MODE_INPUT);
   }
   /* USER CODE END 3 */
 }
@@ -156,10 +181,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, IDE_RESET_Pin|TXS0108E_OE_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : IDE_DD4_Pin IDE_DD5_Pin IDE_DD6_Pin IDE_DD7_Pin
+                           IDE_DD8_Pin IDE_DD9_Pin IDE_DD10_Pin IDE_DD11_Pin
+                           IDE_DD12_Pin IDE_DD13_Pin IDE_DD14_Pin IDE_DD15_Pin */
+  GPIO_InitStruct.Pin = IDE_DD4_Pin|IDE_DD5_Pin|IDE_DD6_Pin|IDE_DD7_Pin
+                          |IDE_DD8_Pin|IDE_DD9_Pin|IDE_DD10_Pin|IDE_DD11_Pin
+                          |IDE_DD12_Pin|IDE_DD13_Pin|IDE_DD14_Pin|IDE_DD15_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : IDE_RESET_Pin TXS0108E_OE_Pin */
   GPIO_InitStruct.Pin = IDE_RESET_Pin|TXS0108E_OE_Pin;
@@ -167,6 +204,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : IDE_DD0_Pin IDE_DD1_Pin IDE_DD2_Pin IDE_DD3_Pin */
+  GPIO_InitStruct.Pin = IDE_DD0_Pin|IDE_DD1_Pin|IDE_DD2_Pin|IDE_DD3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 }
 
