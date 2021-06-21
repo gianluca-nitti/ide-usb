@@ -84,6 +84,18 @@ void Error_Handler(void);
 #define IDE_DD15_GPIO_Port GPIOE
 #define IDE_RESET_Pin GPIO_PIN_15
 #define IDE_RESET_GPIO_Port GPIOB
+#define IDE_DA0_Pin GPIO_PIN_8
+#define IDE_DA0_GPIO_Port GPIOD
+#define IDE_DA1_Pin GPIO_PIN_9
+#define IDE_DA1_GPIO_Port GPIOD
+#define IDE_DA2_Pin GPIO_PIN_10
+#define IDE_DA2_GPIO_Port GPIOD
+#define IDE_CS0_Pin GPIO_PIN_8
+#define IDE_CS0_GPIO_Port GPIOC
+#define IDE_CS1_Pin GPIO_PIN_9
+#define IDE_CS1_GPIO_Port GPIOC
+#define IDE_DIOW_Pin GPIO_PIN_11
+#define IDE_DIOW_GPIO_Port GPIOC
 #define IDE_DD0_Pin GPIO_PIN_0
 #define IDE_DD0_GPIO_Port GPIOD
 #define IDE_DD1_Pin GPIO_PIN_1
@@ -92,6 +104,8 @@ void Error_Handler(void);
 #define IDE_DD2_GPIO_Port GPIOD
 #define IDE_DD3_Pin GPIO_PIN_3
 #define IDE_DD3_GPIO_Port GPIOD
+#define IDE_DIOR_Pin GPIO_PIN_4
+#define IDE_DIOR_GPIO_Port GPIOB
 #define TXS0108E_OE_Pin GPIO_PIN_8
 #define TXS0108E_OE_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
