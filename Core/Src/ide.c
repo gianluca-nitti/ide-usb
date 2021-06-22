@@ -2,14 +2,14 @@
 #include "ide.h"
 
 /* registers are in format CS0 CS1 A2 A1 A0 */
-#define REG_DATA           0b10000
-#define REG_ERROR_FEATURES 0b10001
-#define REG_SECTOR_COUNT   0b10010
-#define REG_LBA_LOW        0b10011
-#define REG_LBA_MID        0b10100
-#define REG_LBA_HIGH       0b10101
-#define REG_DEVICE         0b10110
-#define REG_STATUS_COMMAND 0b10111
+#define REG_DATA           0b01000
+#define REG_ERROR_FEATURES 0b01001
+#define REG_SECTOR_COUNT   0b01010
+#define REG_LBA_LOW        0b01011
+#define REG_LBA_MID        0b01100
+#define REG_LBA_HIGH       0b01101
+#define REG_DEVICE         0b01110
+#define REG_STATUS_COMMAND 0b01111
 
 #define BYTE_COUNT_LOW     0b10100
 #define BYTE_COUNT_HIGH    0b10101
@@ -107,62 +107,77 @@ void ide_init() {
 	// wait for the device to reset
 	HAL_Delay(10);
 	// tell device to leave reset state
-	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	// wait for the device to start up
 	HAL_Delay(10);
-	//HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
+	HAL_Delay(10);
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
+	HAL_Delay(10);
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	//HAL_Delay(3);
 }
 
+static int ide_ready() {
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	int ready = status & 0b0000000001000000;
+	int busy = status & 0b0000000010000000;
+	return ready && !busy;
+}
+
+static int ide_drq() {
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	return status & 0b0000000000001000;
+}
+
 void ide_main_loop() {
-	int r1 = ide_register_read(REG_DATA);
+	/*int r1 = ide_register_read(REG_DATA);
 	int r2 = ide_register_read(REG_ERROR_FEATURES);
 	int r3 = ide_register_read(REG_SECTOR_COUNT);
 	int r4 = ide_register_read(REG_LBA_LOW);
 	int r5 = ide_register_read(REG_LBA_MID);
 	int r6 = ide_register_read(REG_LBA_HIGH);
 	int r7 = ide_register_read(REG_DEVICE);
-	int r8 = ide_register_read(REG_STATUS_COMMAND);
-	return;
+	int r8 = ide_register_read(REG_STATUS_COMMAND);*/
 
+	HAL_Delay(100);
+	ide_register_write(REG_DEVICE, 0b10100000);
 
-	//ide_register_write(REG_STATUS_COMMAND, 0xE0);
-	uint16_t error = ide_register_read(REG_ERROR_FEATURES);
-	HAL_Delay(10);
-	int byte_count_low = ide_register_read(BYTE_COUNT_LOW);
-	HAL_Delay(10);
-	int byte_count_high = ide_register_read(BYTE_COUNT_HIGH);
-	HAL_Delay(10);
-	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
-	HAL_Delay(1000);
+	while(!ide_ready()) {
+		HAL_Delay(5);
+	}
 
-
-	/*for (int i = 0; i < 5; i++) {
-		ide_register_write(REG_STATUS_COMMAND, 0xE1);
-		HAL_Delay(1000);
-		ide_register_write(REG_STATUS_COMMAND, 0xE0);
-		HAL_Delay(1000);
+	/*while (ide_drq()) {
+		uint16_t data = ide_register_read(REG_DATA);
 	}*/
 
-	//ide_register_write(REG_LBA_LOW, 1);
-	//ide_register_write(REG_LBA_MID, 1);
-	//ide_register_write(REG_LBA_HIGH, 0);
-	ide_register_write(REG_STATUS_COMMAND, 0xEC);
-	status = ide_register_read(REG_STATUS_COMMAND);
-	//HAL_Delay(5);
-	status = ide_register_read(REG_STATUS_COMMAND);
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	ide_register_write(REG_LBA_LOW, 0);
+	ide_register_write(REG_LBA_MID, 0);
+	ide_register_write(REG_LBA_HIGH, 0);
+	ide_register_write(REG_STATUS_COMMAND, 0x20);
+
+	while(!ide_drq()) {
+		HAL_Delay(5);
+	}
+
 	for (int i = 0; i < 256; i++) {
 		uint16_t data = ide_register_read(REG_DATA);
 		status = ide_register_read(REG_STATUS_COMMAND);
+		int error = (status & 0b0000000000000001) ? 1 : 0;
+		int pulse = (status & 0b0000000000000010) ? 1 : 0;
+		int ecc   = (status & 0b0000000000000100) ? 1 : 0;
+		int drq   = (status & 0b0000000000001000) ? 1 : 0;
+		int skc   = (status & 0b0000000000010000) ? 1 : 0;
+		int wft   = (status & 0b0000000000100000) ? 1 : 0;
+		int ready = (status & 0b0000000001000000) ? 1 : 0;
+		int busy  = (status & 0b0000000010000000) ? 1 : 0;
+
+		int error_reg = ide_register_read(REG_ERROR_FEATURES);
+
+		HAL_Delay(1);
 	}
 
-	/*HAL_GPIO_TogglePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin);
-	HAL_Delay(1000);*/
 
-	/*ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
-	HAL_GPIO_WritePin(IDE_DD15_GPIO_Port, IDE_DD15_Pin, GPIO_PIN_SET);
 	HAL_Delay(1000);
-	HAL_GPIO_WritePin(IDE_DD15_GPIO_Port, IDE_DD15_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1000);
-	ide_set_bus_mode(GPIO_MODE_INPUT);*/
 }
