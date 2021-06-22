@@ -73,9 +73,9 @@ static void ide_select_register(uint8_t reg) {
 
 static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
-	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 	ide_select_register(reg);
-	HAL_Delay(10);
+	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
+	HAL_Delay(2);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	return result;
@@ -105,15 +105,11 @@ void ide_init() {
 	// now enable the level shifters, connecting the MCU and the IDE device
 	HAL_GPIO_WritePin(TXS0108E_OE_GPIO_Port, TXS0108E_OE_Pin, GPIO_PIN_SET);
 	// wait for the device to reset
-	HAL_Delay(10);
-	// tell device to leave reset state
-	//HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
-	// wait for the device to start up
-	HAL_Delay(10);
+	HAL_Delay(1);
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
+	HAL_Delay(1);
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
-	HAL_Delay(10);
+	HAL_Delay(1);
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	//HAL_Delay(3);
 }
@@ -141,28 +137,29 @@ void ide_main_loop() {
 	int r8 = ide_register_read(REG_STATUS_COMMAND);*/
 
 	HAL_Delay(100);
-	ide_register_write(REG_DEVICE, 0b10100000);
+	ide_register_write(REG_DEVICE, 0b10100000); // select master device
 
-	while(!ide_ready()) {
-		HAL_Delay(5);
-	}
-
-	/*while (ide_drq()) {
-		uint16_t data = ide_register_read(REG_DATA);
-	}*/
+	while(!ide_ready()) HAL_Delay(5);
 
 	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
-	ide_register_write(REG_LBA_LOW, 0);
+
+	/*ide_register_write(REG_LBA_LOW, 0);
 	ide_register_write(REG_LBA_MID, 0);
 	ide_register_write(REG_LBA_HIGH, 0);
-	ide_register_write(REG_STATUS_COMMAND, 0x20);
+	ide_register_write(REG_STATUS_COMMAND, 0x20);*/
+	ide_register_write(REG_STATUS_COMMAND, 0xEC);
 
 	while(!ide_drq()) {
 		HAL_Delay(5);
 	}
 
+	uint8_t buf[512];
+
 	for (int i = 0; i < 256; i++) {
 		uint16_t data = ide_register_read(REG_DATA);
+		buf[i * 2] = (uint8_t) ((data & 0xFF00) >> 8);
+		buf[i * 2 + 1] = (uint8_t) (data & 0x00FF);
+
 		status = ide_register_read(REG_STATUS_COMMAND);
 		int error = (status & 0b0000000000000001) ? 1 : 0;
 		int pulse = (status & 0b0000000000000010) ? 1 : 0;
@@ -175,7 +172,7 @@ void ide_main_loop() {
 
 		int error_reg = ide_register_read(REG_ERROR_FEATURES);
 
-		HAL_Delay(1);
+		//HAL_Delay(5);
 	}
 
 
