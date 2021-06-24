@@ -5,10 +5,9 @@
 #define REG_DATA           0b01000
 #define REG_ERROR_FEATURES 0b01001
 #define REG_SECTOR_COUNT   0b01010
-#define REG_LBA_LOW        0b01011
-#define REG_LBA_MID        0b01100
-#define REG_LBA_HIGH       0b01101
-#define REG_DEVICE         0b01110
+#define REG_CYL_LOW        0b01100
+#define REG_CYL_HIGH       0b01101
+#define REG_HEAD_DEVICE    0b01110
 #define REG_STATUS_COMMAND 0b01111
 
 #define BYTE_COUNT_LOW     0b10100
@@ -75,7 +74,7 @@ static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
 	ide_select_register(reg);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	HAL_Delay(2);
+	HAL_Delay(1);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	return result;
@@ -133,34 +132,50 @@ void ide_main_loop() {
 	int r4 = ide_register_read(REG_LBA_LOW);
 	int r5 = ide_register_read(REG_LBA_MID);
 	int r6 = ide_register_read(REG_LBA_HIGH);
-	int r7 = ide_register_read(REG_DEVICE);
+	int r7 = ide_register_read(REG_HEAD_DEVICE);
 	int r8 = ide_register_read(REG_STATUS_COMMAND);*/
 
 	HAL_Delay(100);
-	ide_register_write(REG_DEVICE, 0b10100000); // select master device
+	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device
 
 	while(!ide_ready()) HAL_Delay(5);
 
 	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 
-	/*ide_register_write(REG_LBA_LOW, 0);
-	ide_register_write(REG_LBA_MID, 0);
-	ide_register_write(REG_LBA_HIGH, 0);
-	ide_register_write(REG_STATUS_COMMAND, 0x20);*/
-	ide_register_write(REG_STATUS_COMMAND, 0xEC);
+	ide_register_write(REG_CYL_LOW, 0);
+	ide_register_write(REG_CYL_HIGH, 0);
+	ide_register_write(REG_STATUS_COMMAND, 0x20);
+	//ide_register_write(REG_STATUS_COMMAND, 0xEC);
 
 	while(!ide_drq()) {
 		HAL_Delay(5);
 	}
 
+	status = ide_register_read(REG_STATUS_COMMAND);
+	int error = (status & 0b0000000000000001) ? 1 : 0;
+	int pulse = (status & 0b0000000000000010) ? 1 : 0;
+	int ecc   = (status & 0b0000000000000100) ? 1 : 0;
+	int drq   = (status & 0b0000000000001000) ? 1 : 0;
+	int skc   = (status & 0b0000000000010000) ? 1 : 0;
+	int wft   = (status & 0b0000000000100000) ? 1 : 0;
+	int ready = (status & 0b0000000001000000) ? 1 : 0;
+	int busy  = (status & 0b0000000010000000) ? 1 : 0;
+
 	uint8_t buf[512];
 
+	ide_select_register(REG_DATA);
 	for (int i = 0; i < 256; i++) {
-		uint16_t data = ide_register_read(REG_DATA);
+		//uint16_t data = ide_register_read(REG_DATA);
+
+		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
+		HAL_Delay(1);
+		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
+		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
+
 		buf[i * 2] = (uint8_t) ((data & 0xFF00) >> 8);
 		buf[i * 2 + 1] = (uint8_t) (data & 0x00FF);
 
-		status = ide_register_read(REG_STATUS_COMMAND);
+		/*status = ide_register_read(REG_STATUS_COMMAND);
 		int error = (status & 0b0000000000000001) ? 1 : 0;
 		int pulse = (status & 0b0000000000000010) ? 1 : 0;
 		int ecc   = (status & 0b0000000000000100) ? 1 : 0;
@@ -170,11 +185,21 @@ void ide_main_loop() {
 		int ready = (status & 0b0000000001000000) ? 1 : 0;
 		int busy  = (status & 0b0000000010000000) ? 1 : 0;
 
-		int error_reg = ide_register_read(REG_ERROR_FEATURES);
+		int error_reg = ide_register_read(REG_ERROR_FEATURES);*/
 
 		//HAL_Delay(5);
 	}
 
+
+	/*uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	int error = (status & 0b0000000000000001) ? 1 : 0;
+	int pulse = (status & 0b0000000000000010) ? 1 : 0;
+	int ecc   = (status & 0b0000000000000100) ? 1 : 0;
+	int drq   = (status & 0b0000000000001000) ? 1 : 0;
+	int skc   = (status & 0b0000000000010000) ? 1 : 0;
+	int wft   = (status & 0b0000000000100000) ? 1 : 0;
+	int ready = (status & 0b0000000001000000) ? 1 : 0;
+	int busy  = (status & 0b0000000010000000) ? 1 : 0;*/
 
 	HAL_Delay(1000);
 }
