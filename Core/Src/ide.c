@@ -29,12 +29,14 @@ static void ide_set_bus_mode(uint32_t mode) {
 	                          |IDE_DD12_Pin|IDE_DD13_Pin|IDE_DD14_Pin|IDE_DD15_Pin;
 	GPIO_InitStruct.Mode = mode;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
 	HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : IDE_DD0_Pin IDE_DD1_Pin IDE_DD2_Pin IDE_DD3_Pin */
 	GPIO_InitStruct.Pin = IDE_DD0_Pin|IDE_DD1_Pin|IDE_DD2_Pin|IDE_DD3_Pin;
 	GPIO_InitStruct.Mode = mode;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
 	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 }
 
@@ -135,6 +137,10 @@ void ide_main_loop() {
 	int r7 = ide_register_read(REG_HEAD_DEVICE);
 	int r8 = ide_register_read(REG_STATUS_COMMAND);*/
 
+	while(ide_drq()) {
+		uint16_t data = ide_register_read(REG_DATA);
+	}
+
 	HAL_Delay(100);
 	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device
 
@@ -167,13 +173,14 @@ void ide_main_loop() {
 	for (int i = 0; i < 256; i++) {
 		//uint16_t data = ide_register_read(REG_DATA);
 
+		HAL_Delay(10);
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-		HAL_Delay(1);
+		//HAL_Delay(1);
 		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 
-		buf[i * 2] = (uint8_t) ((data & 0xFF00) >> 8);
-		buf[i * 2 + 1] = (uint8_t) (data & 0x00FF);
+		buf[i * 2] = (uint8_t) (data & 0x00FF);
+		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
 
 		/*status = ide_register_read(REG_STATUS_COMMAND);
 		int error = (status & 0b0000000000000001) ? 1 : 0;
