@@ -156,18 +156,18 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, IDE_RESET_Pin|IDE_DIOR_Pin|TXS0108E_OE_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, IDE_DIOR_Pin|IDE_CS0_Pin|IDE_CS1_Pin|IDE_DIOW_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, IDE_RESET_Pin|TXS0108E_OE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, IDE_DA0_Pin|IDE_DA1_Pin|IDE_DA2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, IDE_CS0_Pin|IDE_CS1_Pin|IDE_DIOW_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : IDE_DD4_Pin IDE_DD5_Pin IDE_DD6_Pin IDE_DD7_Pin
                            IDE_DD8_Pin IDE_DD9_Pin IDE_DD10_Pin IDE_DD11_Pin
@@ -179,8 +179,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : IDE_RESET_Pin IDE_DIOR_Pin TXS0108E_OE_Pin */
-  GPIO_InitStruct.Pin = IDE_RESET_Pin|IDE_DIOR_Pin|TXS0108E_OE_Pin;
+  /*Configure GPIO pins : IDE_DIOR_Pin IDE_CS0_Pin IDE_CS1_Pin IDE_DIOW_Pin */
+  GPIO_InitStruct.Pin = IDE_DIOR_Pin|IDE_CS0_Pin|IDE_CS1_Pin|IDE_DIOW_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : IDE_RESET_Pin TXS0108E_OE_Pin */
+  GPIO_InitStruct.Pin = IDE_RESET_Pin|TXS0108E_OE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -192,13 +199,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : IDE_CS0_Pin IDE_CS1_Pin IDE_DIOW_Pin */
-  GPIO_InitStruct.Pin = IDE_CS0_Pin|IDE_CS1_Pin|IDE_DIOW_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : IDE_DD0_Pin IDE_DD1_Pin IDE_DD2_Pin IDE_DD3_Pin */
   GPIO_InitStruct.Pin = IDE_DD0_Pin|IDE_DD1_Pin|IDE_DD2_Pin|IDE_DD3_Pin;

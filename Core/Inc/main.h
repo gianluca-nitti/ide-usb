@@ -64,6 +64,8 @@ void Error_Handler(void);
 #define IDE_DD5_GPIO_Port GPIOE
 #define IDE_DD6_Pin GPIO_PIN_6
 #define IDE_DD6_GPIO_Port GPIOE
+#define IDE_DIOR_Pin GPIO_PIN_4
+#define IDE_DIOR_GPIO_Port GPIOC
 #define IDE_DD7_Pin GPIO_PIN_7
 #define IDE_DD7_GPIO_Port GPIOE
 #define IDE_DD8_Pin GPIO_PIN_8
@@ -104,8 +106,6 @@ void Error_Handler(void);
 #define IDE_DD2_GPIO_Port GPIOD
 #define IDE_DD3_Pin GPIO_PIN_3
 #define IDE_DD3_GPIO_Port GPIOD
-#define IDE_DIOR_Pin GPIO_PIN_4
-#define IDE_DIOR_GPIO_Port GPIOB
 #define TXS0108E_OE_Pin GPIO_PIN_8
 #define TXS0108E_OE_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
