@@ -83,15 +83,16 @@ int8_t STORAGE_GetCapacity(uint8_t lun, uint32_t *block_num, uint16_t *block_siz
 }
 
 int8_t  STORAGE_IsReady(uint8_t lun) {
-	return 0;
+	return ide_ready() ? 0 : 1;
 }
 
 int8_t  STORAGE_IsWriteProtected(uint8_t lun) {
-	return 1;
+	return 0;
 }
 
 int8_t STORAGE_Read(uint8_t lun, uint8_t *buf,
                     uint32_t blk_addr, uint16_t blk_len) {
+	ide_read_sectors(blk_addr, buf, blk_len);
 	return 0;
 }
 

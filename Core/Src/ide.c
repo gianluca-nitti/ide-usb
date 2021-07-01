@@ -66,9 +66,9 @@ static void ide_bus_write(uint16_t word) {
 }*/
 
 static inline void ide_ndelay(int ns) {
-	//int cycles = ns / 6 + 1;
-	//for (int i = 0; i < cycles; i++);
-	HAL_Delay(1); // TODO
+	int cycles = 100 * (ns / 6 + 1);
+	for (int i = 0; i < cycles; i++);
+	//HAL_Delay(1); // TODO
 }
 
 static void ide_select_register(uint8_t reg) {
@@ -118,7 +118,7 @@ static void ide_error() {
 	}
 }
 
-static int ide_ready() {
+int ide_ready() {
 	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 	if (status & 1) ide_error();
 	int ready = status & 0b0000000001000000;
@@ -132,12 +132,12 @@ static int ide_drq() {
 	return status & 0b0000000000001000;
 }
 
-static void ide_set_lba(uint32_t lba) { // 28 bit lba
+static void ide_set_lba(uint32_t lba, uint16_t sector_count) { // 28 bit lba
 	ide_register_write(REG_HEAD_DEVICE, (uint8_t)((lba & 0x0F000000) >> 24) | 0b11100000); // master device, LBA mode, lba most significant 4 bits
 	ide_register_write(REG_CYL_HIGH,    (uint8_t)((lba & 0x00FF0000) >> 16));
 	ide_register_write(REG_CYL_LOW,     (uint8_t)((lba & 0x0000FF00) >> 8));
 	ide_register_write(REG_SECTOR,      (uint8_t)((lba & 0x000000FF)));
-	ide_register_write(REG_SECTOR_COUNT, 1);
+	ide_register_write(REG_SECTOR_COUNT, sector_count);
 }
 
 static void ide_reset() {
@@ -181,13 +181,13 @@ int ide_get_num_sectors() {
 	return ((uint32_t)(buf[61]) << 16) | ((uint32_t)(buf[60]));
 }
 
-void ide_read_sector(uint32_t lba, uint8_t* buf) {
+void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
 	ide_reset(); // TODO consider removing all these calls to ide_reset()
 	while(!ide_ready());
-	ide_set_lba(lba);
+	ide_set_lba(lba, num_sectors);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);
 	while(!ide_drq());
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 256 * num_sectors; i++) {
 		uint16_t data = ide_register_read(REG_DATA);
 		buf[i * 2] = (uint8_t) (data & 0x00FF);
 		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
@@ -196,7 +196,7 @@ void ide_read_sector(uint32_t lba, uint8_t* buf) {
 
 void ide_main_loop() {
 	uint8_t buf[512];
-	ide_read_sector(0, buf);
+	ide_read_sector(0, buf, 1);
 	/*uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 	int error = (status & 0b0000000000000001) ? 1 : 0;
 	int pulse = (status & 0b0000000000000010) ? 1 : 0;
