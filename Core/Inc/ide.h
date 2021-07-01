@@ -2,6 +2,8 @@
 #define _IDE_H
 
 void ide_init();
-void ide_main_loop();
+int ide_get_num_sectors();
+
+void ide_main_loop(); // TODO remove
 
 #endif

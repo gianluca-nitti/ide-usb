@@ -23,21 +23,8 @@
 - "stm32xxxxx_{eval}{discovery}{adafruit}_sd.c"
 EndBSPDependencies */
 
-/* Includes ------------------------------------------------------------------*/
+#include "ide.h"
 #include "usbd_msc_storage_template.h"
-
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-/* Private function prototypes -----------------------------------------------*/
-/* Extern function prototypes ------------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
-
-#define STORAGE_LUN_NBR                  1U
-#define STORAGE_BLK_NBR                  0x80U
-#define STORAGE_BLK_SIZ                  512
 
 int8_t STORAGE_Init(uint8_t lun);
 
@@ -82,43 +69,39 @@ USBD_StorageTypeDef USBD_MSC_Template_fops = {
   STORAGE_Read,
   STORAGE_Write,
   STORAGE_GetMaxLun,
-  STORAGE_Inquirydata,
-
+  STORAGE_Inquirydata
 };
 
 int8_t STORAGE_Init(uint8_t lun) {
-  return 0;
+	return 0;
 }
 
 int8_t STORAGE_GetCapacity(uint8_t lun, uint32_t *block_num, uint16_t *block_size) {
-  *block_num  = STORAGE_BLK_NBR;
-  *block_size = STORAGE_BLK_SIZ;
-  return 0;
+	*block_num  = ide_get_num_sectors();
+	*block_size = 512;
+	return 0;
 }
 
 int8_t  STORAGE_IsReady(uint8_t lun) {
-  return 0;
+	return 0;
 }
 
 int8_t  STORAGE_IsWriteProtected(uint8_t lun) {
-  return 1;
+	return 1;
 }
 
 int8_t STORAGE_Read(uint8_t lun, uint8_t *buf,
                     uint32_t blk_addr, uint16_t blk_len) {
-	int byte_idx = blk_addr * STORAGE_BLK_SIZ;
-	int byte_len = blk_len * STORAGE_BLK_SIZ;
-	//memcpy(buf, disk_img + byte_idx, byte_len);
 	return 0;
 }
 
 int8_t STORAGE_Write(uint8_t lun, uint8_t *buf,
                      uint32_t blk_addr, uint16_t blk_len) {
-  return 0;
+	return 0;
 }
 
 int8_t STORAGE_GetMaxLun(void) {
-  return (STORAGE_LUN_NBR - 1);
+	return 0;
 }
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

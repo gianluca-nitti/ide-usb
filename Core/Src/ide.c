@@ -162,12 +162,27 @@ static void ide_reset() {
 	while(!ide_ready());
 }
 
+static void ide_identify_device(uint16_t* buf) {
+	ide_reset();
+	while(!ide_ready());
+	ide_register_write(REG_STATUS_COMMAND, 0xEC);
+	for (int i = 0; i < 256; i++) {
+		buf[i]= ide_register_read(REG_DATA);
+	}
+}
+
 void ide_init() {
 	ide_reset();
 }
 
+int ide_get_num_sectors() {
+	uint16_t buf[256];
+	ide_identify_device(buf);
+	return ((uint32_t)(buf[61]) << 16) | ((uint32_t)(buf[60]));
+}
+
 void ide_read_sector(uint32_t lba, uint8_t* buf) {
-	ide_reset();
+	ide_reset(); // TODO consider removing all these calls to ide_reset()
 	while(!ide_ready());
 	ide_set_lba(lba);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);
