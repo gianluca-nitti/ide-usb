@@ -64,6 +64,12 @@ static void ide_bus_write(uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 }*/
 
+static inline void ide_ndelay(int ns) {
+	int cycles = ns / 6 + 1;
+	for (int i = 0; i < cycles; i++);
+	//HAL_Delay(1); // TODO
+}
+
 static void ide_select_register(uint8_t reg) {
 	HAL_GPIO_WritePin(IDE_CS0_GPIO_Port, IDE_CS0_Pin, reg & REG_CS0_MASK ? GPIO_PIN_SET : GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(IDE_CS1_GPIO_Port, IDE_CS1_Pin, reg & REG_CS1_MASK ? GPIO_PIN_SET : GPIO_PIN_RESET);
@@ -76,9 +82,10 @@ static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
 	ide_select_register(reg);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	//HAL_Delay(1);
+	ide_ndelay(600);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
+	ide_ndelay(600);
 	return result;
 }
 
@@ -88,31 +95,10 @@ static void ide_register_write(uint8_t reg, uint16_t word) {
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
-	//HAL_Delay(1);
+	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
 	ide_set_bus_mode(GPIO_MODE_INPUT);
-}
-
-void ide_init() {
-	// never drive the bus unless when actually writing
-	ide_set_bus_mode(GPIO_MODE_INPUT);
-	// read/write strobes are active low -> normally keep them pulled high
-	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET);
-	// prepare device reset
-	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
-	// make sure signals are settled before connecting everything
-	HAL_Delay(10);
-	// now enable the level shifters, connecting the MCU and the IDE device
-	HAL_GPIO_WritePin(TXS0108E_OE_GPIO_Port, TXS0108E_OE_Pin, GPIO_PIN_SET);
-	// wait for the device to reset
-	HAL_Delay(1);
-	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
-	HAL_Delay(1);
-	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1);
-	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
-	//HAL_Delay(3);
+	ide_ndelay(600);
 }
 
 static int ide_ready() {
@@ -127,6 +113,25 @@ static int ide_drq() {
 	return status & 0b0000000000001000;
 }
 
+void ide_init() {
+	// never drive the bus unless when actually writing
+	ide_set_bus_mode(GPIO_MODE_INPUT);
+	// read/write strobes are active low -> normally keep them pulled high
+	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET);
+	// now enable the level shifters, connecting the MCU and the IDE device
+	HAL_GPIO_WritePin(TXS0108E_OE_GPIO_Port, TXS0108E_OE_Pin, GPIO_PIN_SET);
+	// start device reset
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
+	// wait for the device to reset
+	HAL_Delay(1);
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
+	HAL_Delay(4);
+	//HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
+	//ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device
+	//while(!ide_ready());
+}
+
 void ide_main_loop() {
 	/*int r1 = ide_register_read(REG_DATA);
 	int r2 = ide_register_read(REG_ERROR_FEATURES);
@@ -137,14 +142,11 @@ void ide_main_loop() {
 	int r7 = ide_register_read(REG_HEAD_DEVICE);
 	int r8 = ide_register_read(REG_STATUS_COMMAND);*/
 
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	HAL_Delay(10);
 	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device
 
 	while(!ide_ready());
-
-	while(ide_drq()) {
-		ide_register_read(REG_DATA); // discard
-	}
 
 	// set PIO mode 1 without IORDY
 	ide_register_write(REG_SECTOR_COUNT, 0x01);
@@ -152,7 +154,7 @@ void ide_main_loop() {
 	ide_register_write(REG_STATUS_COMMAND, 0xEF);
 	while(!ide_ready());
 
-	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	uint16_t status;// = ide_register_read(REG_STATUS_COMMAND);
 
 	ide_register_write(REG_CYL_LOW, 0);
 	ide_register_write(REG_CYL_HIGH, 0);
@@ -164,7 +166,6 @@ void ide_main_loop() {
 	uint8_t buf[512];
 	for (int i = 0; i < 256; i++) {
 		//while(!ide_drq());
-		//HAL_Delay(1);
 		uint16_t data = ide_register_read(REG_DATA);
 		/*HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
@@ -173,19 +174,18 @@ void ide_main_loop() {
 		buf[i * 2] = (uint8_t) (data & 0x00FF);
 		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
 
-		/*status = ide_register_read(REG_STATUS_COMMAND);
-		int error = (status & 0b0000000000000001) ? 1 : 0;
-		int pulse = (status & 0b0000000000000010) ? 1 : 0;
-		int ecc   = (status & 0b0000000000000100) ? 1 : 0;
-		int drq   = (status & 0b0000000000001000) ? 1 : 0;
-		int skc   = (status & 0b0000000000010000) ? 1 : 0;
-		int wft   = (status & 0b0000000000100000) ? 1 : 0;
-		int ready = (status & 0b0000000001000000) ? 1 : 0;
-		int busy  = (status & 0b0000000010000000) ? 1 : 0;
-
-		int error_reg = ide_register_read(REG_ERROR_FEATURES);*/
-
-		//HAL_Delay(5);
+		/*if (data == 0xff80 || data == 0x80ff || data == 0x00ff || data == 0xff00) {
+			status = ide_register_read(REG_STATUS_COMMAND);
+			int error = (status & 0b0000000000000001) ? 1 : 0;
+			int pulse = (status & 0b0000000000000010) ? 1 : 0;
+			int ecc   = (status & 0b0000000000000100) ? 1 : 0;
+			int drq   = (status & 0b0000000000001000) ? 1 : 0;
+			int skc   = (status & 0b0000000000010000) ? 1 : 0;
+			int wft   = (status & 0b0000000000100000) ? 1 : 0;
+			int ready = (status & 0b0000000001000000) ? 1 : 0;
+			int busy  = (status & 0b0000000010000000) ? 1 : 0;
+			HAL_Delay(1);
+		}*/
 	}
 
 
@@ -199,5 +199,6 @@ void ide_main_loop() {
 	int ready = (status & 0b0000000001000000) ? 1 : 0;
 	int busy  = (status & 0b0000000010000000) ? 1 : 0;
 
+	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);
 }
