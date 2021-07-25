@@ -167,7 +167,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, IDE_RESET_Pin|TXS0108E_OE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, IDE_DA0_Pin|IDE_DA1_Pin|IDE_DA2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, IDE_DA0_Pin|IDE_DA1_Pin|IDE_DA2_Pin|LED_GREEN_Pin
+                          |LED_ORANGE_Pin|LED_RED_Pin|LED_BLUE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : IDE_DD4_Pin IDE_DD5_Pin IDE_DD6_Pin IDE_DD7_Pin
                            IDE_DD8_Pin IDE_DD9_Pin IDE_DD10_Pin IDE_DD11_Pin
@@ -193,8 +194,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : IDE_DA0_Pin IDE_DA1_Pin IDE_DA2_Pin */
-  GPIO_InitStruct.Pin = IDE_DA0_Pin|IDE_DA1_Pin|IDE_DA2_Pin;
+  /*Configure GPIO pins : IDE_DA0_Pin IDE_DA1_Pin IDE_DA2_Pin LED_GREEN_Pin
+                           LED_ORANGE_Pin LED_RED_Pin LED_BLUE_Pin */
+  GPIO_InitStruct.Pin = IDE_DA0_Pin|IDE_DA1_Pin|IDE_DA2_Pin|LED_GREEN_Pin
+                          |LED_ORANGE_Pin|LED_RED_Pin|LED_BLUE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

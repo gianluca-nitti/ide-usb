@@ -66,9 +66,9 @@ static void ide_bus_write(uint16_t word) {
 }*/
 
 static inline void ide_ndelay(int ns) {
-	//int cycles = ns / 6 + 1;
-	//for (int i = 0; i < cycles; i++);
-	HAL_Delay(1); // TODO
+	int cycles = ns / 6 + 100;
+	for (int i = 0; i < cycles; i++);
+	//HAL_Delay(1); // TODO
 }
 
 static void ide_select_register(uint8_t reg) {
@@ -82,6 +82,7 @@ static void ide_select_register(uint8_t reg) {
 static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
 	ide_select_register(reg);
+	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 	ide_ndelay(600);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
@@ -92,12 +93,16 @@ static uint16_t ide_register_read(uint8_t reg) {
 
 static void ide_register_write(uint8_t reg, uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
+	HAL_Delay(1);
 	ide_select_register(reg);
+	HAL_Delay(1);
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
+	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
 	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
+	ide_ndelay(600);
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_ndelay(600);
 }
@@ -113,6 +118,7 @@ static void ide_error() {
 	int unc   = error & 0b01000000;
 
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
 	while(1) {
 		HAL_Delay(1000);
 	}
@@ -167,7 +173,7 @@ void ide_init() {
 }
 
 void ide_read_sector(uint32_t lba, uint8_t* buf) {
-	ide_reset();
+	//ide_reset();
 	while(!ide_ready());
 	ide_set_lba(lba);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);
@@ -180,6 +186,10 @@ void ide_read_sector(uint32_t lba, uint8_t* buf) {
 }
 
 void ide_main_loop() {
+	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
 	uint8_t buf[512];
 	ide_read_sector(0, buf);
 	/*uint16_t status = ide_register_read(REG_STATUS_COMMAND);
@@ -191,5 +201,10 @@ void ide_main_loop() {
 	int wft   = (status & 0b0000000000100000) ? 1 : 0;
 	int ready = (status & 0b0000000001000000) ? 1 : 0;
 	int busy  = (status & 0b0000000010000000) ? 1 : 0;*/
+	if (buf[510] == 0x55 && buf[511] == 0xaa) {
+		HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_SET);
+	}
 	HAL_Delay(1000);
 }
