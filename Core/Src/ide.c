@@ -82,22 +82,26 @@ static void ide_select_register(uint8_t reg) {
 static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
 	ide_select_register(reg);
+	ide_ndelay(6);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 	ide_ndelay(600);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
-	ide_ndelay(600);
+	//ide_ndelay(600);
 	return result;
 }
 
 static void ide_register_write(uint8_t reg, uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
 	ide_select_register(reg);
+	ide_ndelay(6);
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
+	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
 	ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
+	ide_ndelay(600);
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_ndelay(600);
 }
@@ -114,7 +118,8 @@ static void ide_error() {
 
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
 	while(1) {
-		HAL_Delay(1000);
+		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+		HAL_Delay(100);
 	}
 }
 
@@ -156,9 +161,9 @@ static void ide_reset() {
 	HAL_Delay(4);
 	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
 	// set PIO mode 1 without IORDY
-	ide_register_write(REG_SECTOR_COUNT, 0x01);
+	/*ide_register_write(REG_SECTOR_COUNT, 0x01);
 	ide_register_write(REG_ERROR_FEATURES, 0x03);
-	ide_register_write(REG_STATUS_COMMAND, 0xEF);
+	ide_register_write(REG_STATUS_COMMAND, 0xEF);*/
 	while(!ide_ready());
 }
 
@@ -182,7 +187,6 @@ int ide_get_num_sectors() {
 }
 
 void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
-	ide_reset(); // TODO consider removing all these calls to ide_reset()
 	while(!ide_ready());
 	ide_set_lba(lba, num_sectors);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);

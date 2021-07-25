@@ -92,6 +92,14 @@ void Error_Handler(void);
 #define IDE_DA1_GPIO_Port GPIOD
 #define IDE_DA2_Pin GPIO_PIN_10
 #define IDE_DA2_GPIO_Port GPIOD
+#define LED_GREEN_Pin GPIO_PIN_12
+#define LED_GREEN_GPIO_Port GPIOD
+#define LED_ORANGE_Pin GPIO_PIN_13
+#define LED_ORANGE_GPIO_Port GPIOD
+#define LED_RED_Pin GPIO_PIN_14
+#define LED_RED_GPIO_Port GPIOD
+#define LED_BLUE_Pin GPIO_PIN_15
+#define LED_BLUE_GPIO_Port GPIOD
 #define IDE_CS0_Pin GPIO_PIN_8
 #define IDE_CS0_GPIO_Port GPIOC
 #define IDE_CS1_Pin GPIO_PIN_9
