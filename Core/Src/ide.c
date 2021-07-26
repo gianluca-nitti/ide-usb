@@ -65,9 +65,11 @@ static void ide_bus_write(uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 }*/
 
+static int delay_factor = 100;
+
 static inline void ide_ndelay(int ns) {
-	int cycles = ns / 6 + 100;
-	for (int i = 0; i < cycles; i++);
+	int cycles = delay_factor * (ns / 6);
+	//for (int i = 0; i < cycles; i++);
 	//HAL_Delay(1); // TODO
 }
 
@@ -186,25 +188,30 @@ void ide_read_sector(uint32_t lba, uint8_t* buf) {
 }
 
 void ide_main_loop() {
-	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
-	uint8_t buf[512];
-	ide_read_sector(0, buf);
-	/*uint16_t status = ide_register_read(REG_STATUS_COMMAND);
-	int error = (status & 0b0000000000000001) ? 1 : 0;
-	int pulse = (status & 0b0000000000000010) ? 1 : 0;
-	int ecc   = (status & 0b0000000000000100) ? 1 : 0;
-	int drq   = (status & 0b0000000000001000) ? 1 : 0;
-	int skc   = (status & 0b0000000000010000) ? 1 : 0;
-	int wft   = (status & 0b0000000000100000) ? 1 : 0;
-	int ready = (status & 0b0000000001000000) ? 1 : 0;
-	int busy  = (status & 0b0000000010000000) ? 1 : 0;*/
-	if (buf[510] == 0x55 && buf[511] == 0xaa) {
-		HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_SET);
+	uint8_t ref_buf[512];
+	ide_reset();
+	delay_factor = 100;
+	ide_read_sector(123, ref_buf);
+	delay_factor = 1;
+
+	while (1) {
+		HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin, GPIO_PIN_RESET);
+		uint8_t buf[512];
+		ide_read_sector(123, buf);
+		int diffs = 0;
+		for (int i = 0; i < 512; i++) {
+			if (buf[i] != ref_buf[i]) {
+				diffs++;
+			}
+		}
+		if (diffs == 0 /*&& buf[510] == 0x55 && buf[511] == 0xaa*/) {
+			HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(LED_ORANGE_GPIO_Port, LED_ORANGE_Pin, GPIO_PIN_SET);
+		}
+		HAL_Delay(1000);
 	}
-	HAL_Delay(1000);
 }
