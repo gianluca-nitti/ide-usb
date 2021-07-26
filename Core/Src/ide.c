@@ -84,7 +84,9 @@ static uint16_t ide_register_read(uint8_t reg) {
 	ide_select_register(reg);
 	ide_ndelay(6);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	ide_ndelay(600);
+
+	for (int i = 0; i < 10000/*7500*/; i++);
+
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	//ide_ndelay(600);
@@ -103,7 +105,7 @@ static void ide_register_write(uint8_t reg, uint16_t word) {
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
 	ide_ndelay(600);
 	ide_set_bus_mode(GPIO_MODE_INPUT);
-	ide_ndelay(600);
+	//ide_ndelay(600);
 }
 
 static void ide_error() {
@@ -199,9 +201,9 @@ void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
 }
 
 void ide_main_loop() {
-	uint8_t buf[512];
-	ide_read_sector(0, buf, 1);
-	/*uint16_t status = ide_register_read(REG_STATUS_COMMAND);
+	/*uint8_t buf[512];
+	ide_read_sectors(0, buf, 1);
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 	int error = (status & 0b0000000000000001) ? 1 : 0;
 	int pulse = (status & 0b0000000000000010) ? 1 : 0;
 	int ecc   = (status & 0b0000000000000100) ? 1 : 0;
@@ -209,6 +211,13 @@ void ide_main_loop() {
 	int skc   = (status & 0b0000000000010000) ? 1 : 0;
 	int wft   = (status & 0b0000000000100000) ? 1 : 0;
 	int ready = (status & 0b0000000001000000) ? 1 : 0;
-	int busy  = (status & 0b0000000010000000) ? 1 : 0;*/
-	HAL_Delay(1000);
+	int busy  = (status & 0b0000000010000000) ? 1 : 0;
+	HAL_Delay(1000);*/
+
+	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+	DWT->CYCCNT = 0;
+	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+	ide_ndelay(6000);
+	return;
 }
