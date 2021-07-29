@@ -65,11 +65,9 @@ static void ide_bus_write(uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 }*/
 
-static int ide_read_delay_instruction_cnt = 20000;
-
 static inline void ide_ndelay(int ns) {
-	int cycles = 150 * (ns / 6 + 1);
-	for (int i = 0; i < cycles; i++);
+	//int cycles = (ns / 60 + 1);
+	//for (int i = 0; i < cycles; i++);
 	//HAL_Delay(1); // TODO
 }
 
@@ -86,9 +84,7 @@ static uint16_t ide_register_read(uint8_t reg) {
 	ide_select_register(reg);
 	ide_ndelay(6);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-
-	for (int i = 0; i < ide_read_delay_instruction_cnt; i++);
-
+	ide_ndelay(600);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	//ide_ndelay(600);
@@ -173,10 +169,9 @@ static void ide_reset() {
 
 static void ide_identify_device(uint16_t* buf) {
 	ide_reset();
-	ide_read_delay_instruction_cnt = 20000;
 	while(!ide_ready());
 	ide_register_write(REG_STATUS_COMMAND, 0xEC);
-	// TODO fix here - ide_ready? ide_drq? and drop ide_read_delay_instruction_cnt
+	while(!ide_drq());
 	for (int i = 0; i < 256; i++) {
 		buf[i]= ide_register_read(REG_DATA);
 	}
@@ -197,7 +192,6 @@ void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
 	ide_set_lba(lba, num_sectors);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);
 	while(!ide_drq());
-	ide_read_delay_instruction_cnt = 20;
 	for (int i = 0; i < 256 * num_sectors; i++) {
 		uint16_t data = ide_register_read(REG_DATA);
 		buf[i * 2] = (uint8_t) (data & 0x00FF);
