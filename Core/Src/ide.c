@@ -20,7 +20,14 @@
 #define REG_DA1_MASK 0b00000010
 #define REG_DA0_MASK 0b00000001
 
-static void ide_set_bus_mode(uint32_t mode) {
+static uint32_t ide_current_bus_mode = GPIO_MODE_INPUT;
+
+static inline void ide_set_bus_mode(uint32_t mode) {
+	if (ide_current_bus_mode == mode) {
+		return; // already in requested mode
+	}
+	ide_current_bus_mode = mode;
+
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 	  /*Configure GPIO pins : IDE_DD4_Pin IDE_DD5_Pin IDE_DD6_Pin IDE_DD7_Pin
 	                           IDE_DD8_Pin IDE_DD9_Pin IDE_DD10_Pin IDE_DD11_Pin
@@ -30,14 +37,14 @@ static void ide_set_bus_mode(uint32_t mode) {
 	                          |IDE_DD12_Pin|IDE_DD13_Pin|IDE_DD14_Pin|IDE_DD15_Pin;
 	GPIO_InitStruct.Mode = mode;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : IDE_DD0_Pin IDE_DD1_Pin IDE_DD2_Pin IDE_DD3_Pin */
 	GPIO_InitStruct.Pin = IDE_DD0_Pin|IDE_DD1_Pin|IDE_DD2_Pin|IDE_DD3_Pin;
 	GPIO_InitStruct.Mode = mode;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 }
 
@@ -79,10 +86,10 @@ static void ide_select_register(uint8_t reg) {
 	HAL_GPIO_WritePin(IDE_DA2_GPIO_Port, IDE_DA2_Pin, reg & REG_DA2_MASK ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
-static uint16_t ide_register_read(uint8_t reg) {
-	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
+static inline uint16_t ide_register_read(uint8_t reg) {
+	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(reg);
-	ide_ndelay(6);
+	//ide_ndelay(600);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 	ide_ndelay(600);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
@@ -91,10 +98,10 @@ static uint16_t ide_register_read(uint8_t reg) {
 	return result;
 }
 
-static void ide_register_write(uint8_t reg, uint16_t word) {
+static inline void ide_register_write(uint8_t reg, uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
 	ide_select_register(reg);
-	ide_ndelay(6);
+	//ide_ndelay(600);
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
 	ide_ndelay(600);
