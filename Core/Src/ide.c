@@ -74,8 +74,7 @@ static void ide_bus_write(uint16_t word) {
 
 static inline void ide_ndelay(int ns) {
 	int cycles = (ns / 6 + 1);
-	for (int i = 0; i < cycles; i++);
-	//HAL_Delay(1); // TODO
+	for (volatile int i = 0; i < cycles; i++);
 }
 
 static void ide_select_register(uint8_t reg) {
