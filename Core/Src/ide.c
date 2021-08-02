@@ -95,22 +95,6 @@ static uint16_t ide_register_read_once(uint8_t reg) {
 	return result;
 }
 
-// buf size must be 2 * count
-static void ide_register_read_multi(uint8_t reg, uint8_t* buf, int count) {
-	ide_set_bus_mode(GPIO_MODE_INPUT);
-	ide_select_register(reg);
-	ide_ndelay(300);
-	for (int i = 0; i < count; i++) {
-		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-		ide_ndelay(300);
-		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
-		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
-		buf[i * 2] = (uint8_t) (data & 0x00FF);
-		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
-		ide_ndelay(300);
-	}
-}
-
 static void ide_register_write_once(uint8_t reg, uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
 	ide_select_register(reg);
@@ -185,6 +169,22 @@ static void ide_reset() {
 	while(!ide_ready());
 }
 
+static void ide_read_sector_data(uint8_t* buf) {
+	while(!ide_drq());
+	ide_set_bus_mode(GPIO_MODE_INPUT);
+	ide_select_register(REG_DATA);
+	for (int i = 0; i < 256; i++) {
+		ide_ndelay(90);
+		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
+		ide_ndelay(150);
+		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
+		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
+		buf[i * 2] = (uint8_t) (data & 0x00FF);
+		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
+	}
+	ide_ndelay(600);
+}
+
 static void ide_identify_device(uint16_t* buf) {
 	ide_reset();
 	while(!ide_ready());
@@ -209,8 +209,9 @@ void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
 	while(!ide_ready());
 	ide_set_lba(lba, num_sectors);
 	ide_register_write_once(REG_STATUS_COMMAND, 0x20);
-	while(!ide_drq());
-	ide_register_read_multi(REG_DATA, buf, 256 * num_sectors);
+	for (int i = 0; i < num_sectors; i++) {
+		ide_read_sector_data(buf + (512 * i));
+	}
 }
 
 void ide_main_loop() {
