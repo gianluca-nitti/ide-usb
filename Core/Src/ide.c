@@ -99,15 +99,15 @@ static uint16_t ide_register_read_once(uint8_t reg) {
 static void ide_register_read_multi(uint8_t reg, uint8_t* buf, int count) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(reg);
-	ide_ndelay(600);
+	ide_ndelay(300);
 	for (int i = 0; i < count; i++) {
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-		ide_ndelay(600);
+		ide_ndelay(300);
 		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 		buf[i * 2] = (uint8_t) (data & 0x00FF);
 		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
-		ide_ndelay(600);
+		ide_ndelay(300);
 	}
 }
 
@@ -179,9 +179,9 @@ static void ide_reset() {
 	HAL_Delay(4);
 	ide_register_write_once(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
 	// set PIO mode 1 without IORDY
-	/*ide_register_write(REG_SECTOR_COUNT, 0x01);
-	ide_register_write(REG_ERROR_FEATURES, 0x03);
-	ide_register_write(REG_STATUS_COMMAND, 0xEF);*/
+	ide_register_write_once(REG_SECTOR_COUNT, 0x01);
+	ide_register_write_once(REG_ERROR_FEATURES, 0x03);
+	ide_register_write_once(REG_STATUS_COMMAND, 0xEF);
 	while(!ide_ready());
 }
 
@@ -210,11 +210,6 @@ void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
 	ide_set_lba(lba, num_sectors);
 	ide_register_write_once(REG_STATUS_COMMAND, 0x20);
 	while(!ide_drq());
-	/*for (int i = 0; i < 256 * num_sectors; i++) {
-		uint16_t data = ide_register_read_once(REG_DATA);
-		buf[i * 2] = (uint8_t) (data & 0x00FF);
-		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
-	}*/
 	ide_register_read_multi(REG_DATA, buf, 256 * num_sectors);
 }
 
