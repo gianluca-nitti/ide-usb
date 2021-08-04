@@ -23,10 +23,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ide.h"
-#include "usbd_core.h"
-#include "usbd_desc.h"
-#include "usbd_msc.h"
-#include "usbd_msc_storage_template.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,14 +91,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
   ide_init();
 
-  USBD_HandleTypeDef usbd_handle;
-  USBD_Init(&usbd_handle, &MSC_Desc, 1);
-  USBD_RegisterClass(&usbd_handle, &USBD_MSC);
-
-  USBD_MSC_RegisterStorage(&usbd_handle, &USBD_MSC_Template_fops);
-  USBD_MSC_Init(&usbd_handle, 0);
-
-  USBD_Start(&usbd_handle);
   /* USER CODE END 2 */
 
   /* Infinite loop */
