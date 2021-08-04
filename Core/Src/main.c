@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tusb.h"
 #include "ide.h"
 /* USER CODE END Includes */
 
@@ -90,7 +91,7 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
   ide_init();
-
+  tusb_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -100,6 +101,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    tud_task();
   }
   /* USER CODE END 3 */
 }
