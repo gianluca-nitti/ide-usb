@@ -56,7 +56,7 @@ static inline void ide_set_bus_mode(uint32_t mode) {
 /*static uint16_t ide_bus_read() {
 	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	HAL_Delay(50);
+	osDelay(50);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	return result;
@@ -67,7 +67,7 @@ static void ide_bus_write(uint16_t word) {
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
-	HAL_Delay(1);
+	osDelay(1);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 }*/
@@ -121,7 +121,7 @@ static void ide_error() {
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
 	while(1) {
 		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-		HAL_Delay(100);
+		osDelay(100);
 	}
 }
 
@@ -158,9 +158,9 @@ static void ide_reset() {
 	// start device reset
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
 	// wait for the device to reset
-	HAL_Delay(1);
+	osDelay(1);
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
-	HAL_Delay(4);
+	osDelay(4);
 	ide_register_write_once(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
 	// set PIO mode 1 without IORDY
 	ide_register_write_once(REG_SECTOR_COUNT, 0x01);
@@ -191,7 +191,7 @@ static void ide_identify_device(uint16_t* buf) {
 	ide_register_write_once(REG_STATUS_COMMAND, 0xEC);
 	while(!ide_drq());
 	for (int i = 0; i < 256; i++) {
-		buf[i]= ide_register_read_once(REG_DATA);
+		buf[i] = ide_register_read_once(REG_DATA);
 	}
 }
 
@@ -226,7 +226,7 @@ void ide_main_loop() {
 	int wft   = (status & 0b0000000000100000) ? 1 : 0;
 	int ready = (status & 0b0000000001000000) ? 1 : 0;
 	int busy  = (status & 0b0000000010000000) ? 1 : 0;
-	HAL_Delay(1000);*/
+	osDelay(1000);*/
 
 	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
 	DWT->CYCCNT = 0;

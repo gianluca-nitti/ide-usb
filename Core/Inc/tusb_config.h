@@ -1,5 +1,5 @@
 #define CFG_TUSB_MCU                 OPT_MCU_STM32F4
-#define CFG_TUSB_OS                  OPT_OS_NONE
+#define CFG_TUSB_OS                  OPT_OS_FREERTOS
 #define BOARD_DEVICE_RHPORT_SPEED    OPT_MODE_FULL_SPEED
 #define BOARD_DEVICE_RHPORT_NUM      0
 #define CFG_TUSB_RHPORT0_MODE        (OPT_MODE_DEVICE | OPT_MODE_FULL_SPEED)
