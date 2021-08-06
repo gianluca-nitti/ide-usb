@@ -1,4 +1,5 @@
 #include "main.h"
+#include "cmsis_os.h"
 #include "ide.h"
 
 /* register addresses are in format CS0 CS1 A2 A1 A0 */
@@ -186,7 +187,6 @@ static void ide_read_sector_data(uint8_t* buf) {
 }
 
 static void ide_identify_device(uint16_t* buf) {
-	ide_reset();
 	while(!ide_ready());
 	ide_register_write_once(REG_STATUS_COMMAND, 0xEC);
 	while(!ide_drq());
@@ -205,13 +205,14 @@ int ide_get_num_sectors() {
 	return ((uint32_t)(buf[61]) << 16) | ((uint32_t)(buf[60]));
 }
 
-void ide_read_sectors(uint32_t lba, uint8_t* buf, uint16_t num_sectors) {
+void ide_begin_read_sectors(uint32_t lba, uint16_t num_sectors) {
 	while(!ide_ready());
 	ide_set_lba(lba, num_sectors);
 	ide_register_write_once(REG_STATUS_COMMAND, 0x20);
-	for (int i = 0; i < num_sectors; i++) {
-		ide_read_sector_data(buf + (512 * i));
-	}
+}
+
+void ide_read_next_sector(uint8_t* buf) {
+	ide_read_sector_data(buf);
 }
 
 void ide_main_loop() {

@@ -1,5 +1,5 @@
 #include "tusb.h"
-#include "ide.h"
+#include "ide_async.h"
 
 // Invoked to determine max LUN
 uint8_t tud_msc_get_maxlun_cb(void) {
@@ -27,7 +27,7 @@ bool tud_msc_test_unit_ready_cb(uint8_t lun) {
 // Invoked when received SCSI_CMD_READ_CAPACITY_10 and SCSI_CMD_READ_FORMAT_CAPACITY to determine the disk size
 // Application update block count and block size
 void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_size) {
-	*block_count = ide_get_num_sectors();
+	*block_count = ide_async_get_num_sectors();
 	*block_size  = 512;
 }
 
@@ -43,9 +43,12 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {
 	/*uint8_t const* addr = (lun ? msc_disk1[lba] : msc_disk0[lba]) + offset;
 	memcpy(buffer, addr, bufsize);*/
-	uint32_t num_sectors = bufsize / 512;
-	ide_read_sectors(lba, buffer, num_sectors);
-	return num_sectors * 512;
+
+	//uint32_t num_sectors = bufsize / 512;
+	//ide_read_sectors(lba, buffer, num_sectors);
+	//return num_sectors * 512;
+
+	return ide_async_read(lba, offset, buffer, bufsize);
 }
 
 // Callback invoked when received WRITE10 command.

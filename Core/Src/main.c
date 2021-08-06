@@ -24,7 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "tusb.h"
-#include "ide.h"
+#include "ide_async.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,7 +48,14 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 osThreadId_t tinyusbHandle;
 const osThreadAttr_t tinyusb_attributes = {
   .name = "tinyusb",
-  .stack_size = 512 * 4,
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for ide */
+osThreadId_t ideHandle;
+const osThreadAttr_t ide_attributes = {
+  .name = "ide",
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
@@ -60,6 +67,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 void tinyusb_task(void *argument);
+void ide_task(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -100,7 +108,6 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-  ide_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -125,6 +132,9 @@ int main(void)
   /* Create the thread(s) */
   /* creation of tinyusb */
   tinyusbHandle = osThreadNew(tinyusb_task, NULL, &tinyusb_attributes);
+
+  /* creation of ide */
+  ideHandle = osThreadNew(ide_task, NULL, &ide_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -315,6 +325,24 @@ void tinyusb_task(void *argument)
     tud_task();
   }
   /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_ide_task */
+/**
+* @brief Function implementing the ide thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_ide_task */
+void ide_task(void *argument)
+{
+  /* USER CODE BEGIN ide_task */
+  ide_async_init();
+  /* Infinite loop */
+  while (1) {
+    ide_async_main_loop_step();
+  }
+  /* USER CODE END ide_task */
 }
 
 /**
