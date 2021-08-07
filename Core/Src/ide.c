@@ -79,8 +79,9 @@ static void ide_select_register(uint8_t reg) {
 static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(reg);
+	ide_ndelay(70);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	ide_ndelay(600);
+	ide_ndelay(290);
 	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 	return result;
@@ -91,11 +92,11 @@ static void ide_register_write(uint8_t reg, uint16_t word) {
 	ide_select_register(reg);
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
 	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
-	ide_ndelay(600);
+	ide_ndelay(70);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
-	ide_ndelay(600);
+	ide_ndelay(290);
 	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
-	ide_ndelay(600);
+	ide_ndelay(60);
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 }
 
@@ -153,10 +154,10 @@ static void ide_reset() {
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	osDelay(4);
 	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
-	// set PIO mode 1 without IORDY
-	ide_register_write(REG_SECTOR_COUNT, 0x01);
-	ide_register_write(REG_ERROR_FEATURES, 0x03);
-	ide_register_write(REG_STATUS_COMMAND, 0xEF);
+	// set PIO default mode without IORDY
+	ide_register_write(REG_SECTOR_COUNT, 0x01); // PIO default mode, disable IORDY (ACS-4 7.43.4)
+	ide_register_write(REG_ERROR_FEATURES, 0x03); // "Set transfer mode" (ACS-4 7.43.2)
+	ide_register_write(REG_STATUS_COMMAND, 0xEF); // SET FEATURES (ACS-4 7.43)
 	while(!ide_ready());
 }
 
@@ -164,10 +165,10 @@ void ide_read_next_sector(uint8_t* buf) {
 	while(!ide_drq());
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(REG_DATA);
+	ide_ndelay(70);
 	for (int i = 0; i < 256; i++) {
-		ide_ndelay(90);
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-		ide_ndelay(150);
+		ide_ndelay(165);
 		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
 		buf[i * 2] = (uint8_t) (data & 0x00FF);
