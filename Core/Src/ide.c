@@ -54,10 +54,18 @@ static inline void ide_set_bus_mode(uint32_t mode) {
 #define PORTD_BUS_BSRR_MASK 0b0000000000001111
 #define PORTE_BUS_BSRR_MASK 0b1111111111110000
 
+#define CORE_CLOCK_HZ 168E6 // 168 MHz
+#define CORE_CYCLE_TIME_S (1 / CORE_CLOCK_HZ)
+#define CORE_CYCLE_TIME_NS ((int)(CORE_CYCLE_TIME_S * 1E9 + 1)) // 6ns
+#define NDELAY_CYCLES_PER_ITERATION 3
 
-static inline void ide_ndelay(int ns) {
-	int cycles = (ns / 6 + 1);
-	for (volatile int i = 0; i < cycles; i++);
+static inline void ide_ndelay(unsigned int ns) {
+	unsigned int iterations = (ns / CORE_CYCLE_TIME_NS) / NDELAY_CYCLES_PER_ITERATION + 1;
+	asm volatile (
+		"0: subs %[i], 1;"
+		"bne 0b;"
+		: [i] "+r" (iterations)
+	);
 }
 
 static void ide_select_register(uint8_t reg) {
