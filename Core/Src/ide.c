@@ -76,7 +76,7 @@ static void ide_select_register(uint8_t reg) {
 	HAL_GPIO_WritePin(IDE_DA2_GPIO_Port, IDE_DA2_Pin, reg & REG_DA2_MASK ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
-static uint16_t ide_register_read_once(uint8_t reg) {
+static uint16_t ide_register_read(uint8_t reg) {
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(reg);
 	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
@@ -86,7 +86,7 @@ static uint16_t ide_register_read_once(uint8_t reg) {
 	return result;
 }
 
-static void ide_register_write_once(uint8_t reg, uint16_t word) {
+static void ide_register_write(uint8_t reg, uint16_t word) {
 	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
 	ide_select_register(reg);
 	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
@@ -117,7 +117,7 @@ static void ide_error() {
 }
 
 int ide_ready() {
-	uint16_t status = ide_register_read_once(REG_STATUS_COMMAND);
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 	if (status & 1) ide_error();
 	int ready = status & 0b0000000001000000;
 	int busy = status & 0b0000000010000000;
@@ -125,17 +125,17 @@ int ide_ready() {
 }
 
 static int ide_drq() {
-	uint16_t status = ide_register_read_once(REG_STATUS_COMMAND);
+	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
 	if (status & 1) ide_error();
 	return status & 0b0000000000001000;
 }
 
 static void ide_set_lba(uint32_t lba, uint16_t sector_count) { // 28 bit lba
-	ide_register_write_once(REG_HEAD_DEVICE, (uint8_t)((lba & 0x0F000000) >> 24) | 0b11100000); // master device, LBA mode, lba most significant 4 bits
-	ide_register_write_once(REG_CYL_HIGH,    (uint8_t)((lba & 0x00FF0000) >> 16));
-	ide_register_write_once(REG_CYL_LOW,     (uint8_t)((lba & 0x0000FF00) >> 8));
-	ide_register_write_once(REG_SECTOR,      (uint8_t)((lba & 0x000000FF)));
-	ide_register_write_once(REG_SECTOR_COUNT, sector_count);
+	ide_register_write(REG_HEAD_DEVICE, (uint8_t)((lba & 0x0F000000) >> 24) | 0b11100000); // master device, LBA mode, lba most significant 4 bits
+	ide_register_write(REG_CYL_HIGH,    (uint8_t)((lba & 0x00FF0000) >> 16));
+	ide_register_write(REG_CYL_LOW,     (uint8_t)((lba & 0x0000FF00) >> 8));
+	ide_register_write(REG_SECTOR,      (uint8_t)((lba & 0x000000FF)));
+	ide_register_write(REG_SECTOR_COUNT, sector_count);
 }
 
 static void ide_reset() {
@@ -152,15 +152,15 @@ static void ide_reset() {
 	osDelay(1);
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_SET);
 	osDelay(4);
-	ide_register_write_once(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
+	ide_register_write(REG_HEAD_DEVICE, 0b11100000); // select master device and LBA mode
 	// set PIO mode 1 without IORDY
-	ide_register_write_once(REG_SECTOR_COUNT, 0x01);
-	ide_register_write_once(REG_ERROR_FEATURES, 0x03);
-	ide_register_write_once(REG_STATUS_COMMAND, 0xEF);
+	ide_register_write(REG_SECTOR_COUNT, 0x01);
+	ide_register_write(REG_ERROR_FEATURES, 0x03);
+	ide_register_write(REG_STATUS_COMMAND, 0xEF);
 	while(!ide_ready());
 }
 
-static void ide_read_sector_data(uint8_t* buf) {
+void ide_read_next_sector(uint8_t* buf) {
 	while(!ide_drq());
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(REG_DATA);
@@ -176,13 +176,10 @@ static void ide_read_sector_data(uint8_t* buf) {
 	ide_ndelay(600);
 }
 
-static void ide_identify_device(uint16_t* buf) {
+static void ide_identify_device(uint8_t* buf) {
 	while(!ide_ready());
-	ide_register_write_once(REG_STATUS_COMMAND, 0xEC);
-	while(!ide_drq());
-	for (int i = 0; i < 256; i++) {
-		buf[i] = ide_register_read_once(REG_DATA);
-	}
+	ide_register_write(REG_STATUS_COMMAND, 0xEC);
+	ide_read_next_sector(buf);
 }
 
 void ide_init() {
@@ -191,16 +188,12 @@ void ide_init() {
 
 int ide_get_num_sectors() {
 	uint16_t buf[256];
-	ide_identify_device(buf);
+	ide_identify_device((uint8_t*) buf);
 	return ((uint32_t)(buf[61]) << 16) | ((uint32_t)(buf[60]));
 }
 
 void ide_begin_read_sectors(uint32_t lba, uint16_t num_sectors) {
 	while(!ide_ready());
 	ide_set_lba(lba, num_sectors);
-	ide_register_write_once(REG_STATUS_COMMAND, 0x20);
-}
-
-void ide_read_next_sector(uint8_t* buf) {
-	ide_read_sector_data(buf);
+	ide_register_write(REG_STATUS_COMMAND, 0x20);
 }
