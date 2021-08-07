@@ -41,13 +41,6 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
 // Callback invoked when received READ10 command.
 // Copy disk's data to buffer (up to bufsize) and return number of copied bytes.
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {
-	/*uint8_t const* addr = (lun ? msc_disk1[lba] : msc_disk0[lba]) + offset;
-	memcpy(buffer, addr, bufsize);*/
-
-	//uint32_t num_sectors = bufsize / 512;
-	//ide_read_sectors(lba, buffer, num_sectors);
-	//return num_sectors * 512;
-
 	return ide_async_read(lba, offset, buffer, bufsize);
 }
 

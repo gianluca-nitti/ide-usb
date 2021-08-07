@@ -9,6 +9,4 @@ int ide_get_num_sectors();
 void ide_begin_read_sectors(uint32_t lba, uint16_t num_sectors);
 void ide_read_next_sector(uint8_t* buf);
 
-void ide_main_loop(); // TODO remove
-
 #endif

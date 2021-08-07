@@ -54,24 +54,6 @@ static inline void ide_set_bus_mode(uint32_t mode) {
 #define PORTD_BUS_BSRR_MASK 0b0000000000001111
 #define PORTE_BUS_BSRR_MASK 0b1111111111110000
 
-/*static uint16_t ide_bus_read() {
-	ide_set_bus_mode(GPIO_MODE_INPUT); // TODO consider removing, should not be needed as it's the default state
-	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
-	osDelay(50);
-	uint16_t result = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
-	HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
-	return result;
-}
-
-static void ide_bus_write(uint16_t word) {
-	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
-	GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
-	GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
-	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
-	osDelay(1);
-	HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
-	ide_set_bus_mode(GPIO_MODE_INPUT);
-}*/
 
 static inline void ide_ndelay(int ns) {
 	int cycles = (ns / 6 + 1);
@@ -110,14 +92,14 @@ static void ide_register_write_once(uint8_t reg, uint16_t word) {
 }
 
 static void ide_error() {
-	uint16_t error = ide_register_read_once(REG_ERROR_FEATURES);
+	/*uint16_t error = ide_register_read_once(REG_ERROR_FEATURES);
 	int amnf  = error & 0b00000001;
 	int tk0nf = error & 0b00000010;
 	int abrt  = error & 0b00000100;
 	int mcr   = error & 0b00001000;
 	int idnf  = error & 0b00010000;
 	int mc    = error & 0b00100000;
-	int unc   = error & 0b01000000;
+	int unc   = error & 0b01000000;*/
 
 	HAL_GPIO_WritePin(IDE_RESET_GPIO_Port, IDE_RESET_Pin, GPIO_PIN_RESET);
 	while(1) {
@@ -213,26 +195,4 @@ void ide_begin_read_sectors(uint32_t lba, uint16_t num_sectors) {
 
 void ide_read_next_sector(uint8_t* buf) {
 	ide_read_sector_data(buf);
-}
-
-void ide_main_loop() {
-	/*uint8_t buf[512];
-	ide_read_sectors(0, buf, 1);
-	uint16_t status = ide_register_read(REG_STATUS_COMMAND);
-	int error = (status & 0b0000000000000001) ? 1 : 0;
-	int pulse = (status & 0b0000000000000010) ? 1 : 0;
-	int ecc   = (status & 0b0000000000000100) ? 1 : 0;
-	int drq   = (status & 0b0000000000001000) ? 1 : 0;
-	int skc   = (status & 0b0000000000010000) ? 1 : 0;
-	int wft   = (status & 0b0000000000100000) ? 1 : 0;
-	int ready = (status & 0b0000000001000000) ? 1 : 0;
-	int busy  = (status & 0b0000000010000000) ? 1 : 0;
-	osDelay(1000);*/
-
-	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-	DWT->CYCCNT = 0;
-	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-
-	ide_ndelay(6000);
-	return;
 }
