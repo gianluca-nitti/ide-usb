@@ -22,7 +22,8 @@ static uint32_t requested_lba = 0;
 //static uint32_t max_sectors;
 static uint8_t cache[CACHE_SIZE];
 static uint32_t cache_len = 0;
-static osMutexId_t lock;
+static osMutexId_t requestParamLock;
+static osSemaphoreId_t requestSem;
 
 
 static inline uint32_t min(uint32_t a, uint32_t b) {return a < b ? a : b;}
@@ -49,26 +50,28 @@ int32_t ide_async_read(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf
 		}
 	}
 
-	osMutexAcquire(lock, osWaitForever);
+	osMutexAcquire(requestParamLock, osWaitForever);
 	requested_lba = lba;
 	//max_sectors = buf_size / 512;
 	cache_len = 0;
 	state = STATE_READING;
-	osMutexRelease(lock);
-	osThreadYield();
+	osMutexRelease(requestParamLock);
+	while(osOK != osSemaphoreRelease(requestSem));
 	return 0;
 }
 
 void ide_async_init() {
-	lock = osMutexNew(NULL);
+	requestParamLock = osMutexNew(NULL);
+	requestSem = osSemaphoreNew(1, 0, NULL);
 	ide_init();
 	capacity_in_sectors = ide_get_num_sectors();
 	state = STATE_READY;
 }
 
 void ide_async_main_loop_step() {
+	osSemaphoreAcquire(requestSem, osWaitForever);
+	osMutexAcquire(requestParamLock, osWaitForever);
 	if (state == STATE_READING) {
-		osMutexAcquire(lock, osWaitForever);
 		uint16_t num_sectors = min(CACHE_NUM_SECTORS, capacity_in_sectors - requested_lba);
 		//uint16_t num_sectors = min(CACHE_NUM_SECTORS, max_sectors);
 		ide_begin_read_sectors(requested_lba, num_sectors);
@@ -78,7 +81,6 @@ void ide_async_main_loop_step() {
 			osThreadYield();
 		}
 		state = STATE_DONE_READING;
-		osMutexRelease(lock);
 	}
-	osThreadYield();
+	osMutexRelease(requestParamLock);
 }
