@@ -60,6 +60,19 @@ int32_t ide_async_read(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf
 	return 0;
 }
 
+int32_t ide_async_write(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf_size) {
+	if (offset != 0 || buf_size % 512 != 0) return -1;
+	osMutexAcquire(requestParamLock, osWaitForever);
+	cache_len = 0; // invalidate cache
+	uint16_t num_sectors = buf_size / 512;
+	ide_begin_write_sectors(lba, num_sectors);
+	for (int i = 0; i < num_sectors; i++) {
+		ide_write_next_sector(buf + (i * 512));
+	}
+	osMutexRelease(requestParamLock);
+	return num_sectors * 512;
+}
+
 void ide_async_init() {
 	requestParamLock = osMutexNew(NULL);
 	requestSem = osSemaphoreNew(1, 0, NULL);

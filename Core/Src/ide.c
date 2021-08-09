@@ -162,6 +162,7 @@ static void ide_reset() {
 }
 
 void ide_read_next_sector(uint8_t* buf) {
+	uint16_t* buf16 = (uint16_t*) buf;
 	while(!ide_drq());
 	ide_set_bus_mode(GPIO_MODE_INPUT);
 	ide_select_register(REG_DATA);
@@ -169,10 +170,8 @@ void ide_read_next_sector(uint8_t* buf) {
 	for (int i = 0; i < 256; i++) {
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_RESET); // flash read strobe (active low)
 		ide_ndelay(165);
-		uint16_t data = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
+		buf16[i] = (uint16_t)((GPIOD->IDR & PORTD_BUS_IDR_MASK) | (GPIOE->IDR & PORTE_BUS_IDR_MASK));
 		HAL_GPIO_WritePin(IDE_DIOR_GPIO_Port, IDE_DIOR_Pin, GPIO_PIN_SET); // release read strobe
-		buf[i * 2] = (uint8_t) (data & 0x00FF);
-		buf[i * 2 + 1] = (uint8_t) ((data & 0xFF00) >> 8);
 	}
 	ide_ndelay(600);
 }
@@ -197,4 +196,29 @@ void ide_begin_read_sectors(uint32_t lba, uint16_t num_sectors) {
 	while(!ide_ready());
 	ide_set_lba(lba, num_sectors);
 	ide_register_write(REG_STATUS_COMMAND, 0x20);
+}
+
+void ide_write_next_sector(uint8_t* buf) {
+	uint16_t* buf16 = (uint16_t*) buf;
+	while(!ide_drq());
+	ide_set_bus_mode(GPIO_MODE_OUTPUT_PP);
+	ide_select_register(REG_DATA);
+	ide_ndelay(70);
+	for (int i = 0; i < 256; i++) {
+		uint16_t word = buf16[i];
+		GPIOD->BSRR = ((~word & PORTD_BUS_BSRR_MASK) << 16) | (word & PORTD_BUS_BSRR_MASK);
+		GPIOE->BSRR = ((~word & PORTE_BUS_BSRR_MASK) << 16) | (word & PORTE_BUS_BSRR_MASK);
+		ide_ndelay(60);
+		HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_RESET); // flash write strobe (active low)
+		ide_ndelay(165);
+		HAL_GPIO_WritePin(IDE_DIOW_GPIO_Port, IDE_DIOW_Pin, GPIO_PIN_SET); // release write strobe
+	}
+	ide_ndelay(600);
+	ide_set_bus_mode(GPIO_MODE_INPUT);
+}
+
+void ide_begin_write_sectors(uint32_t lba, uint16_t num_sectors) {
+	while(!ide_ready());
+	ide_set_lba(lba, num_sectors);
+	ide_register_write(REG_STATUS_COMMAND, 0x30);
 }

@@ -47,9 +47,7 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 // Callback invoked when received WRITE10 command.
 // Process data in buffer to disk's storage and return number of written bytes
 int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {
-	/*uint8_t* addr = (lun ? msc_disk1[lba] : msc_disk0[lba])  + offset;
-	memcpy(addr, buffer, bufsize);*/
-	return bufsize;
+	return ide_async_write(lba, offset, buffer, bufsize);
 }
 
 // Callback invoked when received an SCSI command not in built-in list below
