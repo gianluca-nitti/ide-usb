@@ -75,7 +75,15 @@ void ide_task(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+#ifdef DEBUG
+int _write (int fhdl, const void *buf, size_t count) {
+  uint8_t const* buf8 = (uint8_t const*) buf;
+  for(size_t i=0; i<count; i++) {
+    ITM_SendChar(buf8[i]);
+  }
+  return count;
+}
+#endif
 /* USER CODE END 0 */
 
 /**
@@ -101,7 +109,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+#ifdef DEBUG
+  setvbuf(stdout, NULL, _IONBF, 0); // disable stdout buffering
+#endif
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
