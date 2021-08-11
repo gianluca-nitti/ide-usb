@@ -12,7 +12,7 @@ enum {
 	STATE_NOT_INITIALIZED,
 	STATE_READY,
 	STATE_READING,
-	STATE_DONE_READING
+	STATE_WRITING
 } state = STATE_NOT_INITIALIZED;
 
 static uint32_t capacity_in_sectors;
@@ -36,7 +36,7 @@ uint32_t ide_async_get_num_sectors() {
 }
 
 int32_t ide_async_read(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf_size) {
-	if ((state == STATE_READING || state == STATE_DONE_READING) && lba >= requested_lba) {
+	if ((state == STATE_READING || (state == STATE_READY && cache_len > 0)) && lba >= requested_lba) {
 		uint32_t delta_lba = lba - requested_lba;
 		if (delta_lba < CACHE_NUM_SECTORS) {
 			uint32_t delta_bytes = delta_lba * 512;
@@ -61,16 +61,20 @@ int32_t ide_async_read(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf
 }
 
 int32_t ide_async_write(uint32_t lba, uint32_t offset, uint8_t* buf, uint32_t buf_size) {
-	if (offset != 0 || buf_size % 512 != 0) return -1;
-	osMutexAcquire(requestParamLock, osWaitForever);
-	cache_len = 0; // invalidate cache
-	uint16_t num_sectors = buf_size / 512;
-	ide_begin_write_sectors(lba, num_sectors);
-	for (int i = 0; i < num_sectors; i++) {
-		ide_write_next_sector(buf + (i * 512));
+	if (offset != 0) return 0;
+	if (state == STATE_READY) {
+		osMutexAcquire(requestParamLock, osWaitForever);
+		memcpy(cache, buf, buf_size);
+		requested_lba = lba;
+		cache_len = buf_size;
+		state = STATE_WRITING;
+		osMutexRelease(requestParamLock);
+		while(osOK != osSemaphoreRelease(requestSem));
+		return buf_size;
 	}
-	osMutexRelease(requestParamLock);
-	return num_sectors * 512;
+
+	osThreadYield();
+	return 0;
 }
 
 void ide_async_init() {
@@ -93,7 +97,14 @@ void ide_async_main_loop_step() {
 			cache_len += 512;
 			osThreadYield();
 		}
-		state = STATE_DONE_READING;
+		state = STATE_READY;
+	} else if (state == STATE_WRITING) {
+		uint16_t num_sectors = cache_len / 512;
+		ide_begin_write_sectors(requested_lba, num_sectors);
+		for (int i = 0; i < num_sectors; i++) {
+			ide_write_next_sector(cache + (i * 512));
+		}
+		state = STATE_READY;
 	}
 	osMutexRelease(requestParamLock);
 }
